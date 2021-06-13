@@ -86,8 +86,10 @@
     "ci": false
   },
   "devDependencies": {
+    "chai": "^4.3.4",
     "conventional-changelog-cli": "^2.0.34",
     "glob": "^7.1.6",
+    "mocha": "^9.0.0",
     "nodemon": "^2.0.4",
     "standard-version": "^9.1.0"
   }
