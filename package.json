@@ -1,6 +1,6 @@
 {
   "name": "shodan",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Discord and home automation bot",
   "repository": "https://github.com/danfoy/shodan-discord",
   "main": "index.js",
@@ -17,7 +17,9 @@
     "dotenv": "^8.2.0"
   },
   "mocha": {
-    "ignore": ["**/node_modules/**"],
+    "ignore": [
+      "**/node_modules/**"
+    ],
     "recursive": true
   },
   "standard-version": {
