@@ -1,6 +1,6 @@
 {
   "name": "shodan",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Discord and home automation bot",
   "repository": "https://github.com/danfoy/shodan-discord",
   "main": "index.js",
