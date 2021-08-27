@@ -25,183 +25,81 @@ command.addExample('apex solo Delores', 'Generates a solo squad for player `Delo
 module.exports = command;
 
 const { legends }   = require('../../data/legends.json');
-const Discord = require('discord.js');
+const {MessageEmbed, MessageAttachment} = require('discord.js');
+const { parse } = require('dotenv');
+
+// Generate a random squad with specified number of legends
+function randomSquad(size) {
+    const availableLegends = [...legends];
+    let roster = [];
+    for (let i = 0; size > i; i++) {
+        const randomIndex = Math.floor(Math.random() * availableLegends.length);
+        roster.push(availableLegends[randomIndex]);
+        availableLegends.splice(randomIndex, 1);
+    };
+    return roster;
+};
+
+function parseCommand(message, args) {
+
+    // Attempt to parse a squad size from keywords
+    const parseSizeKeyword = (args) => {
+        const keywords = {
+            trios:  ['legends', 'squads', 'squad', 'team', 'trios', 'trio'],
+            duos:  ['duos', 'duo'],
+            solos:  ['solos', 'solo', 'legend']
+        }
+        // Array.includes() won't accept undefined as an argument
+        const firstArg = args[0] ? args[0].toLowerCase() : false;
+        if (keywords.trios.includes(firstArg)) return 3;
+        if (keywords.duos.includes(firstArg)) return 2;
+        if (keywords.solos.includes(firstArg)) return 1;
+        return false;
+    };
+    const parsedSize = parseSizeKeyword(args);
+
+    let players = [...args];
+    if (parsedSize) players.shift(); // Remove size keyword
+
+    // Prepend command user if there are free slots in the squad
+    if ( !parsedSize || parsedSize > players.length)
+        players.unshift(`<@${message.author.id}>`);
+
+    const squadSize = parsedSize || players.length || 1;
+
+    let fullSquad = Array(squadSize);
+    for (let i = 0; i < squadSize; i++) {
+        fullSquad[i] = players[i] ? players[i] : null;
+    }
+
+    return fullSquad;
+};
+
+const getLegendThumbnail = (legend) =>
+    new MessageAttachment(`./Resources/Apex/Legends/${legend}.png`);
+
+function generateEmbeds(squad) {
+    const squadColours = ['#d78d18', '#31a1a0', '#66a103'];
+    const legends = randomSquad(squad.length);
+    return Array.from(squad, (player, index) => {
+        const legend = legends[index];
+        return {
+            embed: new MessageEmbed({
+                title: legend.name,
+                thumbnail: {
+                    url: `attachment://${legend.name}.png`,
+                },
+                color: squadColours[index],
+                description: player || legend.tagline,
+            }),
+            files: [getLegendThumbnail(legend.name)],
+        };
+    });
+};
 
 function roll(message, args = []) {
+    const players = parseCommand(message, args);
+    const embeds = generateEmbeds(players);
+    embeds.forEach(embed => message.channel.send(embed));
+};
 
-    const embedObj = new Discord.MessageEmbed();
-
-    function generateRoster(squadSize, embed, playerOne = false) {
-
-        embed.setColor('#fcba03');
-        embed.setTitle(`__**Your randomised ${squadSize > 1 ? 'legends' : 'legend'}:**__\n\u200b`);
-
-        // Assign player names if available
-        let players = [];
-        if (playerOne) {
-            players[0] = playerOne;
-            players[1] = args[1] || "Player 2";
-            players[2] = args[2] || "Player 3";
-        } else {
-            players[0] = `<@${message.author.id}>`;
-            players[1] = args[0] || "Player 2";
-            players[2] = args[1] || "Player 3";
-        }
-
-        // Get (clone) array of available legends
-        let availableLegends = [].concat(legends);
-
-        // Prepare roster array
-        let roster = [];
-
-        // Randomise squadSize number of legegends to roster array
-        for (let i = 0; i < squadSize; i++) {
-            const randomIndex = Math.floor(Math.random() * availableLegends.length);
-            roster.push(availableLegends.splice(randomIndex, 1));
-        };
-
-        for (let i = 0; i < squadSize; i++) {
-            embed.addField(`**${roster[i]}**`, `${players[i]}\n\u200b`, true);
-        };
-
-        return embed;
-    }
-
-    // Return a random quip or false
-    function generateQuip(embed) {
-
-        let matches = [];
-
-        // Loop through each roster entry
-        for (let i = 0; i < embed.fields.length; i++) {
-
-            // Default value for player to stop errors on remarks
-            let player = embed.fields[i].value;
-            // Trim newline from player variable
-            player = player.replace('\n\u200b', '');
-
-            const remarks = {
-                'Wraith': `Stay sweaty ${player}_TTV`,
-                'Crypto': `Haha get rekt ${player}`,
-                'Wattson': `Make your father proud, ${player}`,
-                'Pathfinder': `You won't find your maker, ${player}. I see no other gods up here but me.`,
-                'Bloodhound': `May the Allfather bless ${player} in slatra`,
-                'Revenant': `Bring me their skinsuits, ${player}`,
-                'Valkyrie': `${player}'s got you in the pipe, 5 by 5`
-            };
-
-            // Match legends with remarks
-            for (let [legend, remark] of Object.entries(remarks)) {
-                legend = `**${legend}**`;
-                if (legend == embed.fields[i].name) {
-                    player = embed.fields[i].value.toString();
-                    // Trim newline from player variable
-                    player = player.replace('\n\u200b', '');
-                    matches.push(remark);
-                };
-            };
-        };
-
-        return matches[0] || false;
-    };
-
-    function sendEmbed(squadSize, embedObj, playerOne = false) {
-        generateRoster(squadSize, embedObj, playerOne);
-        Dolores.send(message.channel, embedObj);
-        let quip = generateQuip(embedObj);
-        if (quip) Dolores.send(message.channel, quip);
-    }
-
-    /**
-     * Argument Validation
-     *
-     * Mode logic depends on players not tagging themselves - the function
-     * will treat them as just another player. Therefore it is pertintent to
-     * strip them out of the arguments.
-     */
-    (function stripAuthor(args) {
-
-        // 0 is a valid array index, so can't use 0 as a check.
-        // Array.findIndex() returns -1 on failure. Use that instead.
-        let taxIndex = -1;
-
-        // Find index of first self-tag
-        if (args) tagIndex = args.findIndex(selfTag => selfTag.includes(message.author.id));
-
-        // Remove first self-tag from args array, else finished
-        if (tagIndex != -1) args.splice(tagIndex, 1)
-        else return;
-
-        // Run recursively until all self-tags removed
-        stripAuthor(args);
-    })(args);
-
-
-    /**
-     * Keywork mode logic
-     *
-     * Command supports being invoked by a keyword. This allows invocation
-     * without providing player names - placeholder values are used if
-     * an insufficient number of players are tagged.
-     */
-
-    // Prepare keywords
-    const trios = ['legends', 'squads', 'squad', 'team', 'trios', 'trio'];
-    const duos  = ['duos', 'duo'];
-    const solos = ['solos', 'solo', 'legend'];
-
-    // Normalised keyword placeholder
-    const format = args[0] ? args[0].toLowerCase() : false;
-
-    // Trios keyword mode
-    if (trios.includes(format)) {
-        args.shift();
-        if (args[2]) return sendEmbed(3, embedObj, args[0]);
-        return sendEmbed(3, embedObj);
-    };
-
-    // Duos keyword mode
-    if (duos.includes(format)) {
-        args.shift();
-        if (args[1]) return sendEmbed(2, embedObj, args[0]);
-        return sendEmbed(2, embedObj);
-    };
-
-    // Solos keyword mode
-    if (solos.includes(format)) {
-        args.shift();
-        if (args[0]) return sendEmbed(1, embedObj, args[0]);
-        return sendEmbed(1, embedObj);
-    };
-
-    /**
-     * Computed mode logic
-     *
-     * If there are no keyword arguments, infer the squad type from the
-     * number of arguments in the command.
-     */
-
-    // Error - more than 3 squad members (including invoking user)
-    if (args[3]) {
-        return Dolores.send(message.channel, 'How am I supposed to generate a squad with more than 3 members? Moron. RTFM.');
-    };
-
-    // Implied Trios, explicit playerOne mode
-    if (args[2]) {
-        return sendEmbed(3, embedObj, args[0]);
-    };
-
-    // Implied Trios mode
-    if (args[1]) {
-        return sendEmbed(3, embedObj);
-    };
-
-    // Implied Duos mode
-    if (args[0]) {
-        return sendEmbed(2, embedObj);
-    };
-
-    // Default - Solos mode
-    return sendEmbed(1, embedObj);
-
-}
