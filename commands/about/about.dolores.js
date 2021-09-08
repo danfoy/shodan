@@ -9,10 +9,10 @@ command.setAccessLevel('anon');
 module.exports = command;
 
 const Discord = require('discord.js');
-const Status = require('../../classes/Status');
+const Status = require('./Status');
 const { parseSeconds } = require('../../classes/shodan');
 
-function about(message, args = []) {
+function about(message) {
 
     // Load information from the Status class
     const status = new Status;
@@ -27,13 +27,13 @@ function about(message, args = []) {
 
     Dolores.send(message.channel, host);
 
-    
+
     // Load information
     const load = new Discord.MessageEmbed;
 
     load.setTitle(  '__**Load**__');
     load.addField(  '**CPU**',
-                    `\`${status.host.cpus[0].model}\`\n` + 
+                    `\`${status.host.cpus[0].model}\`\n` +
                     `**${status.host.cpus.length}** logical cores\n` +
                     `Currently clocked at **${status.host.cpus[0].speed / 1000}GHz**\n\u200b\n` +
                     `**Load averages:**`);
@@ -41,7 +41,7 @@ function about(message, args = []) {
     load.addField(  '**5 minutes**', `${Math.round(status.host.loadAverages[1])}%`, true);
     load.addField(  '**15 minutes**', `${Math.round(status.host.loadAverages[2])}%`, true);
     load.addField(  '\n\u200b\n**RAM**',
-                    `**${Math.floor(status.host.ram.free / 1024 / 1024)}MB** (excl. cache) ` + 
+                    `**${Math.floor(status.host.ram.free / 1024 / 1024)}MB** (excl. cache) ` +
                     `free of **${Math.floor(status.host.ram.total / 1024 / 1024 / 1024)}GB**`);
 
     Dolores.send(message.channel, load);
